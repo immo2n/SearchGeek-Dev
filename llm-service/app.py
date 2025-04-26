@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware  # 👈 Add this
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
@@ -8,17 +7,8 @@ import json
 
 app = FastAPI()
 
-# 👇 Add CORS middleware here to allow all origins
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],            # 👈 Allow any domain
-    allow_credentials=True,
-    allow_methods=["*"],            # 👈 Allow all HTTP methods
-    allow_headers=["*"],            # 👈 Allow all headers
-)
-
 # Load model once on startup
-model_name = "Qwen/Qwen2.5-1.5B"
+model_name = "Qwen/Qwen2.5-3B"
 tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True)
 device = torch.device("cpu")

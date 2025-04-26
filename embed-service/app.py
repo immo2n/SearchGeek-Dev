@@ -46,25 +46,59 @@ async def embed(req: EmbedRequest):
     """
     return {"message": "Embedding is disabled."}
 
-@app.get("/search")
-async def search(query: str, top_k: int = 10):
-    
-    # Step 1: Encode the query into an embedding
-    query_vector = model.encode([query]).tolist()
+class IntentData(BaseModel):
+    primary_intent: str
+    brand: str
+    product_type: str
+    desired_attributes: list
+    constraints: list
 
-    # Step 2: Perform a search in the collection
+@app.post("/search")
+async def search(intent_data: IntentData, top_k: int = 3):
+    structured_query = construct_intent_query(intent_data)
+
+    print_r(structured_query)
+
+    query_vector = model.encode([structured_query]).tolist()
+
     results = collection.query(
         query_embeddings=query_vector,
         n_results=top_k
     )
 
-    # Step 3: Return the search results
     return {
-        "query": query,
+        "query": structured_query,
         "top_k": top_k,
         "results": results["documents"],
-        "scores": results["distances"],  # optional, to return similarity scores
+        "scores": results["distances"],
     }
+
+
+def construct_intent_query(intent_data: IntentData) -> str:
+    query_parts = []
+    
+    # Primary intent (e.g., 'Purchase')
+    query_parts.append(f"Intent: {intent_data.primary_intent}")
+    
+    # Brand (include if mentioned, otherwise leave empty)
+    if intent_data.brand:
+        query_parts.append(f"Brand: {intent_data.brand}")
+    else:
+        query_parts.append("Brand: (none)")
+
+    # Product type (e.g., 'Camera')
+    query_parts.append(f"Product Type: {intent_data.product_type}")
+
+    # Desired attributes (e.g., 'Professional', 'DSLR', 'Good quality')
+    if intent_data.desired_attributes:
+        query_parts.append(f"Attributes: {', '.join(intent_data.desired_attributes)}")
+    
+    # Constraints (e.g., '300$')
+    if intent_data.constraints:
+        query_parts.append(f"Constraints: {', '.join(intent_data.constraints)}")
+    
+    # Combine all parts into a structured query string
+    return " ".join(query_parts)
 
 @app.get("/count")
 async def count_items():

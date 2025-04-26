@@ -1,24 +1,88 @@
-function searchVector(intentData, query) {
+async function filterData(response) {
+    const mainQuery = response.query;
+    const docs = response.results;
+    const scores = response.scores;
+
+    const prompt = `You are an intelligent assistant helping a user select the most relevant product based on their search intent.
+    
+    User Intent:
+    "${mainQuery}"
+    
+    Here are the top 3 product results from the vector database, including their relevance scores:
+    
+    ${docs[0].map((doc, idx) => `Result ${idx + 1} (Score: ${scores[0][idx]}): ${doc}`).join("\n\n")}
+    
+    Instructions:
+    - Identify the single most relevant product based on the *highest score*.
+    - Extract key information directly from that product description.
+    - Do NOT infer or hallucinate missing data.
+    - Respond with a single, clear sentence recommending the best product to buy based on the user's intent.
+    - Wrap your response in this exact JSON format: { "response": "<your one-sentence recommendation here>" }`;    
+
+    console.log("Alanyzing the data with the intent and the results...");
+    const responseText = await fetch('http://localhost:8002/generate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ prompt })
+    });
+    if (!responseText.ok) {
+        throw new Error('Failed to fetch search results');
+    }
+    const data = await responseText.json();
+    const searchResults = document.getElementById('searchResults');
+    searchResults.textContent = `Filtered Data:\n${JSON.stringify(data, null, 2)}`;
+    console.log("Filtered Data: ", data);
+}
+
+async function searchVector(intentData, query) {
     console.log("Intent Data: ", intentData);
     console.log("Query: ", query);
 
-    /**
-    * try {
-       const response = await fetch(`http://localhost:8001/search?query=${encodeURIComponent(searchQuery)}&top_k=10`);
-       
-       if (!response.ok) {
-           throw new Error('Failed to fetch search results');
-       }
+    // Define the body of the request based on the intentData
+    const requestBody = {
+        primary_intent: intentData.primary_intent,
+        brand: intentData.brand || "",  // If brand is not provided, default to empty string
+        product_type: intentData.product_type,
+        desired_attributes: intentData.desired_attributes,
+        constraints: intentData.constraints
+    };
 
-       const data = await response.json();
-       const resultsText = data.results.map((doc, idx) => `Result ${idx + 1}: ${doc}`).join("\n");
-       searchResults.textContent = `Search Results:\n${resultsText} \n data: ${JSON.stringify(data, null, 2)}`;
+    try {
+        // Send the request to the backend API
+        const response = await fetch('http://localhost:8001/search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)  // Send the request body as JSON
+        });
 
-   } catch (error) {
-       searchResults.textContent = `Error: ${error.message}`;
-   }
-    */
+        // Check if the response is OK
+        if (!response.ok) {
+            throw new Error('Failed to fetch search results');
+        }
 
+        // Parse the response data
+        const data = await response.json();
+
+        // Log the results for debugging
+        console.log("Search Results: ", data);
+
+        filterData(data);
+
+        // Format the results and display them (for example, in the UI)
+        const resultsText = data.results.map((doc, idx) => `Result ${idx + 1}: ${doc}`).join("\n");
+        // Assuming you have a container to display the results
+        const searchResults = document.getElementById('searchResults');  // Update with your actual element ID
+        searchResults.textContent = searchResults.textContent + `\nSearch Results:\n${resultsText} \n data: ${JSON.stringify(data, null, 2)}`;
+
+    } catch (error) {
+        // Handle any errors
+        const searchResults = document.getElementById('searchResults');  // Update with your actual element ID
+        searchResults.textContent = `Error: ${error.message}`;
+    }
 }
 
 async function generateEmbedding() {
@@ -145,7 +209,7 @@ Do not include any explanation, apology, or text outside the JSON.`;
         const data = await response.json();
         searchResults.textContent = `Intent Filter result:\n${JSON.stringify(data, null, 2)} \n Procedding to search the vector database...`;
 
-        searchVector(data, searchQuery);
+        searchVector(data.response, searchQuery);
 
     } catch (error) {
         searchResults.textContent = `Error: ${error.message}`;
