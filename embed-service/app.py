@@ -10,7 +10,7 @@ from typing import List
 
 app = FastAPI()
 
-app.mount("/static", StaticFiles(directory="../search-service"), name="static")
+app.mount("/static", StaticFiles(directory="front-end"), name="static")
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
 chroma_client = chromadb.PersistentClient(path="./chroma_store-train")
@@ -24,7 +24,7 @@ class EmbedRequest(BaseModel):
 
 @app.get("/")
 async def serve_home():
-    return FileResponse(os.path.join("../search-service", "index.html"))
+    return FileResponse(os.path.join("front-end", "index.html"))
 
 @app.post("/embed")
 async def embed(req: EmbedRequest):
@@ -48,6 +48,7 @@ async def embed(req: EmbedRequest):
 
 @app.get("/search")
 async def search(query: str, top_k: int = 10):
+    
     # Step 1: Encode the query into an embedding
     query_vector = model.encode([query]).tolist()
 
