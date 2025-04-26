@@ -1,0 +1,5 @@
+/embed-env
+/embed-service/__pycache__
+/llm-service/__pycache__
+/nlp-service/__pycache__
+/search-service/__pycache__
